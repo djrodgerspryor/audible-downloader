@@ -71,6 +71,10 @@ def configure_browser(options):
         "download.default_directory":options.dw_dir}
     opts.add_experimental_option("prefs", chromePrefs)
 
+    # Headless mode
+    opts.add_argument('--headless')
+    opts.add_argument('--disable-gpu')
+
     if sys.platform == 'win32':
         chromedriver_path = "chromedriver.exe"
     else:
