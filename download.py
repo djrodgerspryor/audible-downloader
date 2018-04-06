@@ -34,10 +34,10 @@ def login_audible(driver, options, username, password, base_url, lang):
     if options.player_id:
         player_id = base64.encodestring(binascii.unhexlify(options.player_id)).rstrip()
     logging.debug("[*] Player ID is %s" % player_id)
-    payload = {'openid.ns':'http://specs.openid.net/auth/2.0', 'openid.identity':'http://specs.openid.net/auth/2.0/identifier_select', 
-        'openid.claimed_id':'http://specs.openid.net/auth/2.0/identifier_select', 
-        'openid.mode':'logout', 
-        'openid.assoc_handle':'amzn_audible_' + lang, 
+    payload = {'openid.ns':'http://specs.openid.net/auth/2.0', 'openid.identity':'http://specs.openid.net/auth/2.0/identifier_select',
+        'openid.claimed_id':'http://specs.openid.net/auth/2.0/identifier_select',
+        'openid.mode':'logout',
+        'openid.assoc_handle':'amzn_audible_' + lang,
         'openid.return_to':base_url + 'player-auth-token?playerType=software&playerId=%s=&bp_ua=y&playerModel=Desktop&playerManufacturer=Audible' % (player_id)}
     query_string = urlencode(payload)
     url = login_url + query_string
@@ -58,36 +58,36 @@ def login_audible(driver, options, username, password, base_url, lang):
 def configure_browser(options):
     logging.info("Configuring browser")
 
-    
+
     opts = webdriver.ChromeOptions()
-    
+
     # Chrome user agent will download files for us
     #opts.add_argument("user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36")
-    
+
     # This user agent will give us files w. download info
     opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko")
     chromePrefs = {
-        "profile.default_content_settings.popups":"0", 
+        "profile.default_content_settings.popups":"0",
         "download.default_directory":options.dw_dir}
     opts.add_experimental_option("prefs", chromePrefs)
-    
+
     if sys.platform == 'win32':
         chromedriver_path = "chromedriver.exe"
     else:
         chromedriver_path = "./chromedriver"
-    
+
     logging.info("Starting browser")
-    
+
     driver = webdriver.Chrome(chrome_options=opts,
                               executable_path=chromedriver_path)
-    
+
     return driver
 
-class HeadRequest(urllib2.Request):        
+class HeadRequest(urllib2.Request):
     def get_method(self):
         return "HEAD"
 
-class LyingFancyURLopener(FancyURLopener):        
+class LyingFancyURLopener(FancyURLopener):
     def __init__(self):
         self.version = 'Audible ADM 6.6.0.19;Windows Vista Service Pack 1 Build 7601'
         FancyURLopener.__init__(self)
@@ -105,23 +105,23 @@ def wait_for_download_or_die(datafile):
         sys.exit(1)
 
 def print_progress(block_count, block_size, total_size):
-    #The hook will be passed three arguments; 
-    #    a count of blocks transferred so far, 
-    #    a block size in bytes, 
-    #    and the total size of the file. (may be -1, ignored) 
+    #The hook will be passed three arguments;
+    #    a count of blocks transferred so far,
+    #    a block size in bytes,
+    #    and the total size of the file. (may be -1, ignored)
 
     prev_bytes_complete = (block_count-1)*block_size
     prev_percent = float(prev_bytes_complete)/float(total_size) * 100.0
     prev_progress = "%.0f" % prev_percent
-    
+
     bytes_complete = block_count*block_size
     percent = float(bytes_complete)/float(total_size) * 100.0
     progress = "%.0f" % percent
 
     if (progress != prev_progress) and (block_count == 0 or int(progress) % 5 == 0 or int(progress) >= 100):
         logging.info("Download: %s%% (%s of %s bytes)" % \
-                 (progress, 
-                  bytes_complete, 
+                 (progress,
+                  bytes_complete,
                   total_size))
 
 def download_file(datafile, scraped_title, book, page, maxpage):
@@ -164,19 +164,19 @@ def download_file(datafile, scraped_title, book, page, maxpage):
             head = urllib2.urlopen(request_head)
             head_ok = True
         except urllib2.HTTPError as e_head:
-            if tries < 5: 
+            if tries < 5:
                 tries = tries + 1
                 time.sleep(60)
             else:
                 raise e_head
         except socket.error as se:
-            if tries < 5: 
+            if tries < 5:
                 tries = tries + 1
                 time.sleep(60)
             else:
                 raise e_head
 
-    val, par = cgi.parse_header(head.info().dict['content-disposition']) 
+    val, par = cgi.parse_header(head.info().dict['content-disposition'])
     filename = par['filename'].split("_")[0]
     filename = filename + "." +  par['filename'].split(".")[-1]
     size = head.info().dict['content-length']
@@ -200,23 +200,23 @@ def download_file(datafile, scraped_title, book, page, maxpage):
         logging.info("File %s does not exist, downloading" % (path,))
 
     if True:
-        opener = LyingFancyURLopener() 
+        opener = LyingFancyURLopener()
         local_filename, headers = opener.retrieve(url, path, reporthook=print_progress)
         #local_filename, headers = urlretrieve(url, path, reporthook=print_progress)
-        
+
         #import pdb; pdb.set_trace()
-        
+
         #filename = ""
         #try:
-        #    val, par = cgi.parse_header(headers.dict['content-disposition']) 
+        #    val, par = cgi.parse_header(headers.dict['content-disposition'])
         #    filename = par['filename'].split("_")[0]
         #    filename = filename + "." +  par['filename'].split(".")[-1]
-        #except KeyError: 
+        #except KeyError:
         #    import pdb; pdb.set_trace()
-        
+
         #logging.info("Filename: %s" % filename)
         #logging.info("Size: %s" % size)
-        
+
         #path = "%s%s" % (options.dw_dir, filename)
         #os.rename(local_filename,path)
         logging.info("Completed download of '%s' to %s" % (title, path))
@@ -384,7 +384,7 @@ if __name__ == "__main__":
 
     dt = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
-    logging.basicConfig(format='%(levelname)s(#%(lineno)d):%(message)s', 
+    logging.basicConfig(format='%(levelname)s(#%(lineno)d):%(message)s',
         level=logging.INFO, filename="./audible-download-%s.log" % (dt))
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
