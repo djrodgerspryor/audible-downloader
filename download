@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+./download.py --user "$AUDIBLE_USER" --password "$AUDIBLE_PASSWORD"

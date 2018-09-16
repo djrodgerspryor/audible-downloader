@@ -6,3 +6,4 @@ chromedriver*
 .pydevproject
 *.log
 *.conf
+.DS_Store

@@ -21,6 +21,15 @@ import cgi # cgi.parse_header
 import datetime
 import socket
 
+screenshot_counter = 0
+
+def screenshot(driver, name):
+    global screenshot_counter
+
+    screenshot_counter += 1
+    filename = "/app/log/%03d-%s.png" % (screenshot_counter,name)
+    driver.get_screenshot_as_file(filename)
+
 def login_audible(driver, options, username, password, base_url, lang):
     # Step 1
     if '@' in username: # Amazon login using email address
@@ -45,15 +54,24 @@ def login_audible(driver, options, username, password, base_url, lang):
     driver.get(base_url + '?ipRedirectOverride=true')
     logging.info("Logging in to Amazon/Audible")
     driver.get(url)
-    search_box = driver.find_element_by_id('ap_email')
-    search_box.send_keys(username)
-    search_box = driver.find_element_by_id('ap_password')
-    search_box.send_keys(password)
+
+    screenshot(driver, "login-page")
+
+    driver.find_element_by_id('ap_email').send_keys(username)
+    driver.find_element_by_id('ap_password').send_keys(password)
+
+    screenshot(driver, "login-page-filled")
+
     if os.getenv("DEBUG") or options.debug: # enable if you hit CAPTCHA or 2FA or other "security" screens
         logging.warning("[!] Running in DEBUG mode. You will need to login in a semi-automatic way, wait for the login screen to show up ;)")
         time.sleep(32)
     else:
-        search_box.submit()
+        driver.find_element_by_id('signInSubmit').submit()
+
+    time.sleep(1)
+    screenshot(driver, "login-submitted")
+
+    # TODO: detect and respond to captcha
 
 def configure_browser(options):
     logging.info("Configuring browser")
@@ -74,11 +92,13 @@ def configure_browser(options):
     # Headless mode
     opts.add_argument('--headless')
     opts.add_argument('--disable-gpu')
+    opts.add_argument('--no-sandbox')
+    opts.add_argument('--disable-dev-shm-usage')
 
     if sys.platform == 'win32':
         chromedriver_path = "chromedriver.exe"
     else:
-        chromedriver_path = "./chromedriver"
+        chromedriver_path = "/usr/local/bin/chromedriver"
 
     logging.info("Starting browser")
 
@@ -288,14 +308,16 @@ def configure_audible_library(driver, lang):
     driver.get(lib_url)
     time.sleep(2)
 
+    screenshot(driver, "library-loaded")
+
     logging.info("Selecting books from 'All Time'")
-    select = Select(driver.find_element_by_id("adbl_time_filter"))
+    select = Select(driver.find_element_by_name("purchaseDateFilter"))
     select.select_by_value("all")
     time.sleep(5)
 
     # Make sure we are getting the ENHANCED format
     # u'ENHANCED' u'MP332' u'ACELP16' u'ACELP85'
-    s = Select(driver.find_element_by_id("adbl_select_preferred_format"))
+    s = Select(driver.find_element_by_css_selector(".adbl-library-format-selector select"))
     if len(s.all_selected_options) == 1:
         if 'ENHANCED' == s.all_selected_options[0].get_attribute("value").strip():
             logging.info("Selected format was ENHANCED, continuing")
@@ -310,9 +332,10 @@ def configure_audible_library(driver, lang):
         sys.exit(1)
 
     # Comment out this in hope of not hitting download limit as fast
-    if not ('adbl-sort-down' in driver.find_element_by_id("SortByLength").get_attribute("class")):
+    sort_by_length_el = driver.find_element_by_css_selector('a[aria-label~="Length"][data-name~="sortBy"]')
+    if not ('bc-text-bold' in sort_by_length_el.get_attribute("class")):
         logging.info("Sorting downloads by shortest to longest")
-        driver.find_element_by_id("SortByLength").click()
+        sort_by_length_el.click()
         time.sleep(10)
     else:
         logging.info("Downloads were already sorted by shortest to longest, continuing")
@@ -429,6 +452,7 @@ if __name__ == "__main__":
         pass
 
     login_audible(driver, options, username, password, base_url, lang)
+
     configure_audible_library(driver, lang)
     loop_pages(logging, driver)
 
